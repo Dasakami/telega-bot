@@ -1,0 +1,11 @@
+aiogram
+python-dotenv
+sqlalchemy
+asyncpg
+aiosqlite
+folium
+wikipediaapi 
+pyfiglet
+googletrans
+sqlite3
+logging
