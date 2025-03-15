@@ -57,7 +57,7 @@ async def translate_word(message: types.Message):
     await message.reply(f"{word} - {translation}")
 
 # Обработчик команды /text
-@tran_group_router.message(Command("text"))
+@tran_group_router.message(Command("tran"))
 async def translate_text(message: types.Message):
     reply = message.reply_to_message
     lang = group_languages.get(message.chat.id, "en-ru").split("-")
@@ -82,7 +82,7 @@ async def show_stats(message: types.Message):
     cursor.execute("SELECT words_learned FROM stats WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     words_count = result[0] if result else 0
-    await message.reply(f"Вы выучили {words_count} слов!")
+    await message.reply(f"Вы выучили {words_count} слов(-а)!")
 
 # Обработчик команды /currentlang
 @tran_group_router.message(Command("currentlang"))

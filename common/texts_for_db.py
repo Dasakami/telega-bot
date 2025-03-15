@@ -1,11 +1,11 @@
 from aiogram.utils.formatting import Bold, as_list, as_marked_section
 
 
-categories = ['Еда', 'Напитки']
+categories = ['Книги', 'Аксессуары']
 
 description_for_info_pages = {
     "main": "Добро пожаловать!",
-    "about": "Пиццерия Такая-то.\nРежим работы - круглосуточно.",
+    "about": "Лучшие книги и аксессуары для изучающих английский! Подобрал все, что нужно для успешного обучения.",
     "payment": as_marked_section(
         Bold("Варианты оплаты:"),
         "Картой в боте",

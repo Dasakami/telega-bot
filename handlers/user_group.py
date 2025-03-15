@@ -4,6 +4,7 @@ from aiogram.types import InputFile
 
 from aiogram import F, Bot, types, Router, Dispatcher
 from aiogram.filters import Command
+from googletrans import Translator 
 
 from filters.chat_types import ChatTypeFilter
 from common.restricted_words import restricted_words
@@ -12,6 +13,9 @@ import requests
 import folium
 import random
 import os
+import logging
+import http.client
+import json
 import wikipediaapi  # Импортируем библиотеку для работы с Wikipedia API
 
 user_group_router = Router()
@@ -60,6 +64,10 @@ async def mute_user(message: types.Message, bot: Bot):
     )
     await message.reply(f"Пользователь {message.reply_to_message.from_user.first_name} замучен на 5 минут!")
 
+@user_group_router.message(Command('porn'))
+async def bot_info(message: types.Message):
+    await message.reply(f"Ислам тебе сюда надо? 'https://rt.pornhub.com/video/search?search=pornohub")
+
 
 @user_group_router.message(Command("info"))
 async def bot_info(message: types.Message):
@@ -71,7 +79,6 @@ async def bot_info(message: types.Message):
     Я помогу вам с администрированием групп и выполнением различных команд!
     """
     await message.reply(bot_info_text)
-
 
 
 
@@ -342,33 +349,138 @@ async def kick_user(message: types.Message, bot: Bot):
 
 
 
+translator = Translator()
+
+# Функция для получения случайной шутки
+async def get_random_joke(category=None):
+    conn = http.client.HTTPSConnection("jokeapi-v2.p.rapidapi.com")
+    headers = {
+        'x-rapidapi-key': "42d64a47c1mshf800a3639f57c06p1e9d1cjsn5001b6c4c8ce",
+        'x-rapidapi-host': "jokeapi-v2.p.rapidapi.com"
+    }
+
+    # Формируем URL в зависимости от категории
+    if category:
+        url = f"/joke/Any?format=json&contains={category}"
+    else:
+        url = "/joke/Any?format=json"
+
+    conn.request("GET", url, headers=headers)
+    res = conn.getresponse()
+    data = res.read()
+
+    if res.status == 200:
+        joke_data = json.loads(data.decode("utf-8"))
+
+        if 'type' in joke_data:
+            if joke_data['type'] == 'single':
+                joke_text = joke_data['joke']
+            elif joke_data['type'] == 'twopart':
+                joke_text = f"{joke_data['setup']} - {joke_data['delivery']}"
+            else:
+                joke_text = "Не удалось распознать шутку."
+        else:
+            joke_text = "Ошибка: в ответе нет поля 'type'."
+    else:
+        joke_text = f"Ошибка: не удалось получить данные от API. Код: {res.status}"
+
+    conn.close()
+    return joke_text
+
+# Обработчик команды /joke с категорией
 @user_group_router.message(Command("joke"))
 async def joke(message: types.Message):
-    jokes = [
-    "Почему программисты так не любят приручать котов? Потому что они всегда выполняют 'null' с результатом.",
-    "Я так много раз переустанавливал Windows, что теперь могу его починить без интернета.",
-    "Почему программисты так не любят спать? Потому что они не могут отключить баги ночью.",
-    "Мой ноутбук такой медленный, что его можно назвать ‘потоковым’ компьютером."
-]
+    args = message.text.split(maxsplit=1)  # Разделяем команду и аргумент
+    category = args[1] if len(args) > 1 else None  # Берем категорию, если есть
 
-    joke = random.choice(jokes)
-    await message.reply(joke)
+    joke = await get_random_joke(category)
+    await message.reply(joke, parse_mode='Markdown')
 
 
 
-@user_group_router.message(Command("quote_of_the_day"))
-async def quote_of_the_day(message: types.Message):
-    quotes = [
-    "Жизнь — это 10% того, что с нами происходит, и 90% того, как мы на это реагируем.",
-    "Секрет успеха — это начать.",
-    "День, в который ты не ошибся, — это день, когда ты не делал ничего нового.",
-    "Будьте тем изменением, которое хотите увидеть в мире."
-]
+async def get_random_quote():
+    url = "https://api.forismatic.com/api/1.0/"
+    params = {
+        "method": "getQuote",
+        "format": "json",
+        "lang": "ru"  # Можно заменить на "en" для английских цитат
+    }
 
-    quote = random.choice(quotes)
-    await message.reply(f"Цитата дня: {quote}")
+    try:
+        response = requests.get(url, params=params)
+        response.encoding = "utf-8"  # Исправляем кодировку
+        if response.status_code == 200:
+            quote_data = response.json()
+
+            quote_text = f"💬 {quote_data['quoteText']}\n— {quote_data['quoteAuthor'] or 'Неизвестный автор'}"
+            return quote_text
+        else:
+            return f"❌ Ошибка API: код {response.status_code}"
+    except Exception as e:
+        logging.error(f"Ошибка при запросе API: {e}")
+        return "❌ Ошибка при получении цитаты."
+    
+@user_group_router.message(Command('quote'))
+async def send_quote(message: types.Message):
+    quote = await get_random_quote()
+    await message.reply(quote, parse_mode="Markdown")
 
 
+import urllib.parse
+async def search_anime(query):
+    # Кодируем запрос для корректной работы с русскими символами
+    query_encoded = urllib.parse.quote(query)
+    
+    conn = http.client.HTTPSConnection("api.jikan.moe")
+
+    # Формируем запрос к API с закодированным запросом
+    url = f"/v4/anime?q={query_encoded}&limit=1"  # Ограничиваем поиск до 1 результата
+
+    conn.request("GET", url)
+    res = conn.getresponse()
+    data = res.read()
+
+    if res.status == 200:
+        anime_data = json.loads(data.decode("utf-8"))
+        
+        if "data" in anime_data and len(anime_data["data"]) > 0:
+            anime = anime_data["data"][0]
+            anime_name = anime.get("title", "Не найдено аниме")
+            anime_synopsis = anime.get("synopsis", "Нет описания")
+            anime_image_url = anime.get("images", {}).get("jpg", {}).get("image_url", "Нет изображения")
+            
+            return f"Название аниме: {anime_name}\nОписание: {anime_synopsis}\nИзображение: {anime_image_url}"
+        else:
+            return "Не удалось найти аниме по запросу."
+    else:
+        return f"Ошибка: не удалось получить данные от API. Код: {res.status}"
+
+    conn.close()
+
+# Обработчик команды для поиска аниме
+@user_group_router.message(Command("anime"))
+async def anime(message: types.Message):
+    args = message.text.split(maxsplit=1)  # Разделяем команду и запрос
+    query = args[1] if len(args) > 1 else None  # Берем запрос
+
+    if query:
+        result = await search_anime(query)
+        await message.reply(result, parse_mode='Markdown')
+    else:
+        await message.reply("Пожалуйста, укажите запрос для поиска аниме.")
+
+
+async def get_random_meme():
+    url = "https://api.imgflip.com/get_memes"
+    response = requests.get(url).json()
+    meme = random.choice(response["data"]["memes"])  # Выбираем случайный мем
+    return meme["url"]
+
+# Обработчик команды для отправки случайного мема
+@user_group_router.message(Command("meme"))
+async def meme(message: types.Message):
+    meme_url = await get_random_meme()
+    await message.reply_photo(meme_url)  # Отправка картинки напрямую
 @user_group_router.message(Command("poll"))
 async def poll(message: types.Message):
     # Проверка прав администратора
